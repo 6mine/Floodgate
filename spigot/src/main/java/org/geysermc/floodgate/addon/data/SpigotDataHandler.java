@@ -29,6 +29,7 @@ import static org.geysermc.floodgate.util.ReflectionUtils.getCastedValue;
 import static org.geysermc.floodgate.util.ReflectionUtils.setValue;
 
 import com.mojang.authlib.GameProfile;
+import com.mojang.authlib.properties.Property;
 import io.netty.channel.Channel;
 import io.netty.util.AttributeKey;
 import java.lang.reflect.InvocationTargetException;
@@ -38,9 +39,16 @@ import org.geysermc.floodgate.config.FloodgateConfig;
 import org.geysermc.floodgate.player.FloodgateHandshakeHandler;
 import org.geysermc.floodgate.player.FloodgateHandshakeHandler.HandshakeResult;
 import org.geysermc.floodgate.util.ClassNames;
+import org.geysermc.floodgate.util.Constants;
 import org.geysermc.floodgate.util.ProxyUtils;
 
 public final class SpigotDataHandler extends CommonDataHandler {
+    private static final Property DEFAULT_TEXTURE_PROPERTY = new Property(
+            "textures",
+            Constants.DEFAULT_MINECRAFT_JAVA_SKIN_TEXTURE,
+            Constants.DEFAULT_MINECRAFT_JAVA_SKIN_SIGNATURE
+    );
+
     private Object networkManager;
     private FloodgatePlayer player;
     private boolean proxyData;
@@ -68,9 +76,9 @@ public final class SpigotDataHandler extends CommonDataHandler {
             // 1.20.2 and above
             try {
                 Object[] components = new Object[]{
-                    ClassNames.HANDSHAKE_PORT.get(handshakePacket),
-                    hostname,
                     ClassNames.HANDSHAKE_PROTOCOL.get(handshakePacket),
+                    hostname,
+                    ClassNames.HANDSHAKE_PORT.get(handshakePacket),
                     ClassNames.HANDSHAKE_INTENTION.get(handshakePacket)
                 };
 
@@ -170,6 +178,13 @@ public final class SpigotDataHandler extends CommonDataHandler {
             GameProfile gameProfile = new GameProfile(
                     player.getCorrectUniqueId(), player.getCorrectUsername()
             );
+
+            if (!player.isLinked()) {
+                // Otherwise game server will try to fetch the skin from Mojang.
+                // No need to worry that this overrides proxy data, because those won't reach this
+                // method / are already removed (in the case of username validation)
+                gameProfile.getProperties().put("textures", DEFAULT_TEXTURE_PROPERTY);
+            }
 
             // we have to fake the offline player (login) cycle
 
